@@ -350,12 +350,12 @@ export default function HomeScreen() {
       ) : null}
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Sample Events</Text>
+        <Text style={styles.cardTitle}>Upcoming Events</Text>
 
         {classified.length === 0 ? (
           <Text>No upcoming events found. Try connecting your calendar.</Text>
         ) : (
-          classified.slice(0, 5).map((event) => {
+          classified.map((event) => {
             const aiMatch = aiAnalysis?.eventClassifications.find(
               (item) => item.id === event.id
             );
@@ -376,6 +376,8 @@ export default function HomeScreen() {
                   </>
                 ) : null}
                 <Text>{event.attendeeCount} attendees</Text>
+                <Text>Start: {event.start}</Text>
+                <Text>End: {event.end}</Text>
               </View>
             );
           })
