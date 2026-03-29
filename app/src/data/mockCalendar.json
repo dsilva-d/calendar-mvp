@@ -1,0 +1,71 @@
+{
+    "kind": "calendar#events",
+    "summary": "Taylor Mockson",
+    "timeZone": "America/New_York",
+    "items": [
+      {
+        "id": "mock_evt_001",
+        "summary": "MOCK - Dragon Strategy Sync",
+        "description": "Quarterly dragon alignment meeting",
+        "start": { "dateTime": "2026-03-30T09:00:00-04:00" },
+        "end": { "dateTime": "2026-03-30T09:30:00-04:00" },
+        "attendees": [
+          { "email": "dragon.lead@mock.com" },
+          { "email": "ops@mock.com" }
+        ],
+        "organizer": { "email": "taylor@mock.com" },
+        "status": "confirmed",
+        "recurrence": ["RRULE:FREQ=WEEKLY"]
+      },
+      {
+        "id": "mock_evt_002",
+        "summary": "MOCK - Emergency Sandwich Review",
+        "start": { "dateTime": "2026-03-30T10:00:00-04:00" },
+        "end": { "dateTime": "2026-03-30T11:00:00-04:00" },
+        "attendees": [
+          { "email": "snacks@mock.com" }
+        ],
+        "status": "confirmed"
+      },
+      {
+        "id": "mock_evt_003",
+        "summary": "MOCK - Moon Colony Standup",
+        "start": { "dateTime": "2026-03-31T09:30:00-04:00" },
+        "end": { "dateTime": "2026-03-31T10:00:00-04:00" },
+        "attendees": [
+          { "email": "moon.ops@mock.com" },
+          { "email": "launch@mock.com" },
+          { "email": "science@mock.com" }
+        ],
+        "status": "confirmed",
+        "recurrence": ["RRULE:FREQ=WEEKLY;BYDAY=TU,WE,TH"]
+      },
+      {
+        "id": "mock_evt_004",
+        "summary": "MOCK - Deep Work Block",
+        "start": { "dateTime": "2026-03-31T13:00:00-04:00" },
+        "end": { "dateTime": "2026-03-31T15:00:00-04:00" },
+        "status": "confirmed"
+      },
+      {
+        "id": "mock_evt_005",
+        "summary": "MOCK - CEO Laser Check-in",
+        "start": { "dateTime": "2026-04-01T08:30:00-04:00" },
+        "end": { "dateTime": "2026-04-01T09:00:00-04:00" },
+        "attendees": [
+          { "email": "ceo@mock.com" }
+        ],
+        "status": "confirmed"
+      },
+      {
+        "id": "mock_evt_006",
+        "summary": "MOCK - Interview: Time Traveler Candidate",
+        "start": { "dateTime": "2026-04-01T11:00:00-04:00" },
+        "end": { "dateTime": "2026-04-01T12:00:00-04:00" },
+        "attendees": [
+          { "email": "recruiting@mock.com" }
+        ],
+        "status": "confirmed"
+      }
+    ]
+  }
