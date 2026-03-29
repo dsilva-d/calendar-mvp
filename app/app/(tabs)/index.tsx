@@ -49,7 +49,7 @@ type AiAnalysis = {
 function normalizeGoogleEvents(calendarResponse: any): NormalizedEvent[] {
   return (calendarResponse.items || []).map((event: any) => ({
     id: event.id,
-    title: event.summary || "",
+    title: event.summary || "(Untitled event)",
     start: event.start?.dateTime || event.start?.date || "",
     end: event.end?.dateTime || event.end?.date || "",
     attendeeCount: event.attendees?.length || 0,
@@ -134,6 +134,63 @@ function analyzeSchedule(events: ReturnType<typeof classifyEvent>[]) {
   };
 }
 
+function toDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function parseEventDate(value: string) {
+  if (!value) return new Date("");
+  return new Date(value);
+}
+
+function formatEventTime(value: string) {
+  if (!value) return "All day";
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return "All day";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Invalid time";
+  }
+
+  return date.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatMonthYear(date: Date) {
+  return date.toLocaleDateString([], {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function buildMonthGrid(monthDate: Date) {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+
+  const firstDayOfMonth = new Date(year, month, 1);
+  const startDay = firstDayOfMonth.getDay();
+
+  const gridStart = new Date(year, month, 1 - startDay);
+  const days: Date[] = [];
+
+  for (let i = 0; i < 42; i += 1) {
+    const day = new Date(gridStart);
+    day.setDate(gridStart.getDate() + i);
+    days.push(day);
+  }
+
+  return days;
+}
+
 export default function HomeScreen() {
   const [calendarData, setCalendarData] = useState<any>(mockCalendar);
   const [source, setSource] = useState("mock");
@@ -141,6 +198,10 @@ export default function HomeScreen() {
   const [loadingCalendar, setLoadingCalendar] = useState(false);
   const [loadingAi, setLoadingAi] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<AiAnalysis | null>(null);
+  const [visibleMonth, setVisibleMonth] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
 
   const normalized = useMemo(
     () => normalizeGoogleEvents(calendarData),
@@ -156,6 +217,35 @@ export default function HomeScreen() {
     () => analyzeSchedule(classified),
     [classified]
   );
+
+  const eventsByDate = useMemo(() => {
+    const grouped: Record<string, ReturnType<typeof classifyEvent>[]> = {};
+
+    classified.forEach((event) => {
+      const startDate = parseEventDate(event.start);
+
+      if (Number.isNaN(startDate.getTime())) return;
+
+      const key = toDateKey(startDate);
+
+      if (!grouped[key]) {
+        grouped[key] = [];
+      }
+
+      grouped[key].push(event);
+    });
+
+    Object.values(grouped).forEach((events) => {
+      events.sort(
+        (a, b) =>
+          parseEventDate(a.start).getTime() - parseEventDate(b.start).getTime()
+      );
+    });
+
+    return grouped;
+  }, [classified]);
+
+  const monthDays = useMemo(() => buildMonthGrid(visibleMonth), [visibleMonth]);
 
   async function loadRealCalendar() {
     try {
@@ -173,7 +263,7 @@ export default function HomeScreen() {
 
       if (!response.ok) {
         let message = `Failed to load calendar (${response.status})`;
-      
+
         try {
           const errorJson = await response.json();
           if (errorJson?.error) {
@@ -182,7 +272,7 @@ export default function HomeScreen() {
         } catch {
           // keep default message
         }
-      
+
         throw new Error(message);
       }
 
@@ -190,6 +280,16 @@ export default function HomeScreen() {
       setCalendarData(data);
       setSource("google");
       setAiAnalysis(null);
+
+      const normalizedEvents = normalizeGoogleEvents(data);
+      if (normalizedEvents.length > 0) {
+        const firstEventDate = parseEventDate(normalizedEvents[0].start);
+        if (!Number.isNaN(firstEventDate.getTime())) {
+          setVisibleMonth(
+            new Date(firstEventDate.getFullYear(), firstEventDate.getMonth(), 1)
+          );
+        }
+      }
     } catch (err: any) {
       setError(err.message || "Something went wrong");
     } finally {
@@ -202,6 +302,16 @@ export default function HomeScreen() {
     setSource("mock");
     setError("");
     setAiAnalysis(null);
+
+    const normalizedEvents = normalizeGoogleEvents(mockCalendar);
+    if (normalizedEvents.length > 0) {
+      const firstEventDate = parseEventDate(normalizedEvents[0].start);
+      if (!Number.isNaN(firstEventDate.getTime())) {
+        setVisibleMonth(
+          new Date(firstEventDate.getFullYear(), firstEventDate.getMonth(), 1)
+        );
+      }
+    }
   }
 
   async function signOut() {
@@ -210,7 +320,7 @@ export default function HomeScreen() {
         method: "POST",
         credentials: "include",
       });
-      // reset state
+
       setCalendarData(mockCalendar);
       setSource("mock");
       setAiAnalysis(null);
@@ -295,6 +405,7 @@ export default function HomeScreen() {
             {loadingAi ? "Analyzing..." : "Analyze with AI"}
           </Text>
         </TouchableOpacity>
+
         {source === "google" && (
           <TouchableOpacity style={styles.button} onPress={signOut}>
             <Text style={styles.buttonText}>Sign Out</Text>
@@ -350,44 +461,127 @@ export default function HomeScreen() {
       ) : null}
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Upcoming Events</Text>
+        <View style={styles.calendarHeader}>
+          <Text style={styles.cardTitle}>Calendar View</Text>
+
+          <View style={styles.monthNav}>
+            <TouchableOpacity
+              style={styles.monthButton}
+              onPress={() =>
+                setVisibleMonth(
+                  new Date(
+                    visibleMonth.getFullYear(),
+                    visibleMonth.getMonth() - 1,
+                    1
+                  )
+                )
+              }
+            >
+              <Text style={styles.monthButtonText}>‹</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.monthLabel}>{formatMonthYear(visibleMonth)}</Text>
+
+            <TouchableOpacity
+              style={styles.monthButton}
+              onPress={() =>
+                setVisibleMonth(
+                  new Date(
+                    visibleMonth.getFullYear(),
+                    visibleMonth.getMonth() + 1,
+                    1
+                  )
+                )
+              }
+            >
+              <Text style={styles.monthButtonText}>›</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {classified.length === 0 ? (
           <Text>No upcoming events found. Try connecting your calendar.</Text>
         ) : (
-          <ScrollView horizontal>
-        {classified.map((event) => {
-          const aiMatch = aiAnalysis?.eventClassifications.find(
-            (item) => item.id === event.id
-          );
-
-          return (
-            <View key={event.id} style={styles.eventCard}>
-          <Text style={styles.eventTitle}>{event.title}</Text>
-          <Text>
-            Rule: {event.classification.type} ·{" "}
-            {event.classification.priority}
-          </Text>
-          {aiMatch ? (
-            <>
-              <Text>
-            AI: {aiMatch.type} · {aiMatch.priority}
-              </Text>
-              <Text>{aiMatch.reason}</Text>
-            </>
-          ) : null}
-          <Text>{event.attendeeCount} attendees</Text>
-          <Text>Start: {event.start}</Text>
-          <Text>End: {event.end}</Text>
+          <>
+            <View style={styles.weekHeaderRow}>
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                <View key={day} style={styles.weekHeaderCell}>
+                  <Text style={styles.weekHeaderText}>{day}</Text>
+                </View>
+              ))}
             </View>
-          );
-        })}
-          </ScrollView>
+
+            <View style={styles.calendarGrid}>
+              {monthDays.map((day) => {
+                const key = toDateKey(day);
+                const dayEvents = eventsByDate[key] || [];
+                const isCurrentMonth =
+                  day.getMonth() === visibleMonth.getMonth();
+                const todayKey = toDateKey(new Date());
+                const isToday = key === todayKey;
+
+                return (
+                  <View
+                    key={key}
+                    style={[
+                      styles.dayCell,
+                      !isCurrentMonth && styles.dayCellOutsideMonth,
+                      isToday && styles.todayCell,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.dayNumber,
+                        !isCurrentMonth && styles.dayNumberOutsideMonth,
+                      ]}
+                    >
+                      {day.getDate()}
+                    </Text>
+
+                    {dayEvents.length === 0 ? null : dayEvents.slice(0, 3).map((event) => {
+                      const aiMatch = aiAnalysis?.eventClassifications.find(
+                        (item) => item.id === event.id
+                      );
+
+                      return (
+                        <View key={event.id} style={styles.calendarEventPill}>
+                          <Text style={styles.calendarEventTime}>
+                            {formatEventTime(event.start)}
+                          </Text>
+                          <Text
+                            style={styles.calendarEventTitle}
+                            numberOfLines={1}
+                          >
+                            {event.title}
+                          </Text>
+                          {aiMatch ? (
+                            <Text
+                              style={styles.calendarEventMeta}
+                              numberOfLines={1}
+                            >
+                              AI: {aiMatch.type}
+                            </Text>
+                          ) : null}
+                        </View>
+                      );
+                    })}
+
+                    {dayEvents.length > 3 ? (
+                      <Text style={styles.moreEventsText}>
+                        +{dayEvents.length - 3} more
+                      </Text>
+                    ) : null}
+                  </View>
+                );
+              })}
+            </View>
+          </>
         )}
       </View>
     </ScrollView>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     padding: 20,
@@ -461,11 +655,109 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 4,
   },
-  eventCard: {
+  calendarHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  monthNav: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  monthButton: {
+    backgroundColor: "#111827",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  monthButtonText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  monthLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111827",
+    minWidth: 140,
+    textAlign: "center",
+  },
+  weekHeaderRow: {
+    flexDirection: "row",
+    marginBottom: 8,
+  },
+  weekHeaderCell: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  weekHeaderText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6b7280",
+  },
+  calendarGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  dayCell: {
+    width: "14.2857%",
+    minHeight: 130,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: "#e5e7eb",
+    padding: 8,
     backgroundColor: "#ffffff",
-    borderRadius: 10,
-    padding: 10,
-    marginRight: 10,
-    width: 200,
+  },
+  dayCellOutsideMonth: {
+    backgroundColor: "#f9fafb",
+  },
+  todayCell: {
+    backgroundColor: "#eff6ff",
+  },
+  dayNumber: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 6,
+  },
+  dayNumberOutsideMonth: {
+    color: "#9ca3af",
+  },
+  calendarEventPill: {
+    backgroundColor: "#e5eefc",
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    marginBottom: 4,
+  },
+  calendarEventTime: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#1d4ed8",
+  },
+  calendarEventTitle: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  calendarEventMeta: {
+    fontSize: 10,
+    color: "#4b5563",
+  },
+  moreEventsText: {
+    fontSize: 10,
+    color: "#6b7280",
+    marginTop: 2,
   },
 });
