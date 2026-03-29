@@ -9,14 +9,19 @@ dotenv.config();
 
 const app = express();
 
+const FRONTEND_URL =
+  process.env.FRONTEND_URL || "http://localhost:8081";
+
 app.use(
   cors({
-    origin: "http://localhost:8081",
+    origin: [FRONTEND_URL, "http://localhost:8081"],
     credentials: true,
   })
 );
 
 app.use(express.json());
+
+app.set("trust proxy", 1);
 
 app.use(
   session({
@@ -24,9 +29,9 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false,
+      secure: true,
       httpOnly: true,
-      sameSite: "lax",
+      sameSite: "none",
     },
   })
 );
@@ -70,7 +75,7 @@ app.get("/auth/google/callback", async (req, res) => {
     const { tokens } = await oauth2Client.getToken(code);
     req.session.tokens = tokens;
 
-    res.redirect("http://localhost:8081");
+    res.redirect(FRONTEND_URL);
   } catch (error) {
     console.error("Google callback error:", error);
     res.status(500).send("Google auth failed");
@@ -218,19 +223,17 @@ ${JSON.stringify(trimmedEvents, null, 2)}
     });
 
     const parsed = JSON.parse(response.text);
-
     res.json(parsed);
   } catch (error) {
     console.error("Gemini analysis error:", error);
 
     const message = error?.message || "Failed to analyze calendar";
-
     res.status(500).json({ error: message });
   }
 });
 
-const PORT = 4000;
+const PORT = process.env.PORT || 4000;
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

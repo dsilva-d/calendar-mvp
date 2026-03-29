@@ -8,6 +8,9 @@ import {
 } from "react-native";
 import mockCalendar from "../../src/data/mockCalendar.json";
 
+const API_BASE =
+  process.env.EXPO_PUBLIC_API_BASE || "http://localhost:4000";
+
 type NormalizedEvent = {
   id: string;
   title: string;
@@ -162,12 +165,12 @@ export default function HomeScreen() {
       setLoadingCalendar(true);
       setError("");
 
-      const response = await fetch("http://localhost:4000/api/calendar/events", {
+      const response = await fetch(`${API_BASE}/api/calendar/events`, {
         credentials: "include",
       });
 
       if (response.status === 401) {
-        window.location.href = "http://localhost:4000/auth/google";
+        window.location.href = `${API_BASE}/auth/google`;
         return;
       }
 
@@ -198,7 +201,7 @@ export default function HomeScreen() {
       setLoadingAi(true);
       setError("");
 
-      const response = await fetch("http://localhost:4000/api/analyze-calendar", {
+      const response = await fetch(`${API_BASE}/api/analyze-calendar`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
