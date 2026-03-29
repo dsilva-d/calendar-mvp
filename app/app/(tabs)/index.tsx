@@ -204,6 +204,22 @@ export default function HomeScreen() {
     setAiAnalysis(null);
   }
 
+  async function signOut() {
+    try {
+      await fetch(`/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+      // reset state
+      setCalendarData(mockCalendar);
+      setSource("mock");
+      setAiAnalysis(null);
+      setError("");
+    } catch (err) {
+      console.error("Logout failed", err);
+    }
+  }
+
   async function analyzeWithAi() {
     try {
       setLoadingAi(true);
@@ -279,6 +295,11 @@ export default function HomeScreen() {
             {loadingAi ? "Analyzing..." : "Analyze with AI"}
           </Text>
         </TouchableOpacity>
+        {source === "google" && (
+          <TouchableOpacity style={styles.button} onPress={signOut}>
+            <Text style={styles.buttonText}>Sign Out</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -330,29 +351,35 @@ export default function HomeScreen() {
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Sample Events</Text>
-        {classified.slice(0, 5).map((event) => {
-          const aiMatch = aiAnalysis?.eventClassifications.find(
-            (item) => item.id === event.id
-          );
 
-          return (
-            <View key={event.id} style={styles.eventRow}>
-              <Text style={styles.eventTitle}>{event.title}</Text>
-              <Text>
-                Rule: {event.classification.type} · {event.classification.priority}
-              </Text>
-              {aiMatch ? (
-                <>
-                  <Text>
-                    AI: {aiMatch.type} · {aiMatch.priority}
-                  </Text>
-                  <Text>{aiMatch.reason}</Text>
-                </>
-              ) : null}
-              <Text>{event.attendeeCount} attendees</Text>
-            </View>
-          );
-        })}
+        {classified.length === 0 ? (
+          <Text>No upcoming events found. Try connecting your calendar.</Text>
+        ) : (
+          classified.slice(0, 5).map((event) => {
+            const aiMatch = aiAnalysis?.eventClassifications.find(
+              (item) => item.id === event.id
+            );
+
+            return (
+              <View key={event.id} style={styles.eventRow}>
+                <Text style={styles.eventTitle}>{event.title}</Text>
+                <Text>
+                  Rule: {event.classification.type} ·{" "}
+                  {event.classification.priority}
+                </Text>
+                {aiMatch ? (
+                  <>
+                    <Text>
+                      AI: {aiMatch.type} · {aiMatch.priority}
+                    </Text>
+                    <Text>{aiMatch.reason}</Text>
+                  </>
+                ) : null}
+                <Text>{event.attendeeCount} attendees</Text>
+              </View>
+            );
+          })
+        )}
       </View>
     </ScrollView>
   );

@@ -232,6 +232,13 @@ ${JSON.stringify(trimmedEvents, null, 2)}
   }
 });
 
+app.post("/auth/logout", (req, res) => {
+    req.session.destroy(() => {
+      res.clearCookie("connect.sid");
+      res.json({ success: true });
+    });
+  });
+
 const PORT = process.env.PORT || 4000;
 
 app.listen(PORT, () => {
