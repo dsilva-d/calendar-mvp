@@ -172,7 +172,18 @@ export default function HomeScreen() {
       }
 
       if (!response.ok) {
-        throw new Error("Failed to load calendar");
+        let message = `Failed to load calendar (${response.status})`;
+      
+        try {
+          const errorJson = await response.json();
+          if (errorJson?.error) {
+            message = errorJson.error;
+          }
+        } catch {
+          // keep default message
+        }
+      
+        throw new Error(message);
       }
 
       const data = await response.json();
