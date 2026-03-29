@@ -355,38 +355,39 @@ export default function HomeScreen() {
         {classified.length === 0 ? (
           <Text>No upcoming events found. Try connecting your calendar.</Text>
         ) : (
-          classified.map((event) => {
-            const aiMatch = aiAnalysis?.eventClassifications.find(
-              (item) => item.id === event.id
-            );
+          <ScrollView horizontal>
+        {classified.map((event) => {
+          const aiMatch = aiAnalysis?.eventClassifications.find(
+            (item) => item.id === event.id
+          );
 
-            return (
-              <View key={event.id} style={styles.eventRow}>
-                <Text style={styles.eventTitle}>{event.title}</Text>
-                <Text>
-                  Rule: {event.classification.type} ·{" "}
-                  {event.classification.priority}
-                </Text>
-                {aiMatch ? (
-                  <>
-                    <Text>
-                      AI: {aiMatch.type} · {aiMatch.priority}
-                    </Text>
-                    <Text>{aiMatch.reason}</Text>
-                  </>
-                ) : null}
-                <Text>{event.attendeeCount} attendees</Text>
-                <Text>Start: {event.start}</Text>
-                <Text>End: {event.end}</Text>
-              </View>
-            );
-          })
+          return (
+            <View key={event.id} style={styles.eventCard}>
+          <Text style={styles.eventTitle}>{event.title}</Text>
+          <Text>
+            Rule: {event.classification.type} ·{" "}
+            {event.classification.priority}
+          </Text>
+          {aiMatch ? (
+            <>
+              <Text>
+            AI: {aiMatch.type} · {aiMatch.priority}
+              </Text>
+              <Text>{aiMatch.reason}</Text>
+            </>
+          ) : null}
+          <Text>{event.attendeeCount} attendees</Text>
+          <Text>Start: {event.start}</Text>
+          <Text>End: {event.end}</Text>
+            </View>
+          );
+        })}
+          </ScrollView>
         )}
       </View>
     </ScrollView>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     padding: 20,
@@ -459,5 +460,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 4,
+  },
+  eventCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 10,
+    padding: 10,
+    marginRight: 10,
+    width: 200,
   },
 });
