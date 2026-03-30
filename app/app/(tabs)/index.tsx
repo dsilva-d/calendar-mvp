@@ -386,7 +386,32 @@ export default function HomeScreen() {
   }
 
   useEffect(() => {
-    loadMockCalendar();
+    async function initializeCalendar() {
+      try {
+        setError("");
+  
+        const response = await fetch(`/api/auth/status`, {
+          credentials: "include",
+        });
+  
+        if (!response.ok) {
+          loadMockCalendar();
+          return;
+        }
+  
+        const data = await response.json();
+  
+        if (data.authenticated) {
+          await loadRealCalendar();
+        } else {
+          loadMockCalendar();
+        }
+      } catch (err) {
+        loadMockCalendar();
+      }
+    }
+  
+    initializeCalendar();
   }, []);
 
   return (
