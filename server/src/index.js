@@ -9,6 +9,31 @@ dotenv.config();
 
 const app = express();
 
+function isDateOnlyString(value) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(value);
+  }
+  
+function formatForPrompt(value, timeZone) {
+if (!value) return "Unknown time";
+if (isDateOnlyString(value)) return `${value} (all day)`;
+
+const date = new Date(value);
+
+if (Number.isNaN(date.getTime())) {
+    return value;
+}
+
+return new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: false,
+}).format(date);
+}
+
 const FRONTEND_URL =
   process.env.FRONTEND_URL || "http://localhost:8081";
 
@@ -131,7 +156,8 @@ app.post("/api/analyze-calendar", async (req, res) => {
         return res.status(500).json({ error: "Missing GEMINI_API_KEY" });
       }
   
-      const { events } = req.body;
+      const { events, timezone } = req.body;
+      const userTimeZone = timezone || "America/New_York";
   
       if (!Array.isArray(events)) {
         return res.status(400).json({ error: "events must be an array" });
@@ -139,8 +165,8 @@ app.post("/api/analyze-calendar", async (req, res) => {
   
       const normalizedEvents = events.map((event) => ({
         title: event.title || "Untitled",
-        start: event.start,
-        end: event.end,
+        start: formatForPrompt(event.start, userTimeZone),
+        end: formatForPrompt(event.end, userTimeZone),
         attendeeCount: event.attendeeCount ?? 0,
         isRecurring: Boolean(event.isRecurring),
         status: event.status ?? "confirmed",
@@ -160,33 +186,38 @@ app.post("/api/analyze-calendar", async (req, res) => {
   
       console.log("[analyze] event count:", compactEvents.length);
       console.log("[analyze] before Gemini call");
+      console.log("[analyze] timezone:", userTimeZone);
+      console.log("[analyze] first compact event:", compactEvents[0]);
   
       const prompt = `
-  You are analyzing a user's full upcoming calendar week.
-  
-  Return valid JSON with exactly this shape:
-  {
-    "insights": ["string", "string", "string"],
-    "suggestions": [
-      {
-        "type": "move_meeting|create_focus_block|reduce_recurring_meetings|protect_morning_focus",
-        "title": "string",
-        "reason": "string"
-      }
-    ]
-  }
-  
-  Rules:
-  - Use all events provided.
-  - Keep exactly 3 insights.
-  - Keep up to 3 suggestions.
-  - Focus on schedule patterns, overload, recurring meetings, fragmentation, and focus time.
-  - Do not include any extra keys.
-  - Keep suggestions practical and concise.
-  
-  Weekly events:
-  ${compactEvents.join("\n")}
-      `.trim();
+            You are analyzing a user's full upcoming calendar week.
+
+            All event times below are already converted to this timezone: ${userTimeZone}.
+            Do not refer to UTC unless explicitly asked.
+
+            Return valid JSON with exactly this shape:
+        {
+            "insights": ["string", "string", "string"],
+            "suggestions": [
+            {
+                "type": "move_meeting|create_focus_block|reduce_recurring_meetings|protect_morning_focus",
+                "title": "string",
+                "reason": "string"
+            }
+            ]
+        }
+        
+        Rules:
+        - Use all events provided.
+        - Keep exactly 3 insights.
+        - Keep up to 3 suggestions.
+        - Focus on schedule patterns, overload, recurring meetings, fragmentation, and focus time.
+        - Do not include any extra keys.
+        - Keep suggestions practical and concise.
+        
+        Weekly events:
+        ${compactEvents.join("\n")}
+            `.trim();
   
       const response = await Promise.race([
         ai.models.generateContent({
@@ -231,7 +262,7 @@ app.post("/api/analyze-calendar", async (req, res) => {
       });
     }
   });
-  
+
 
 app.post("/auth/logout", (req, res) => {
     req.session.destroy(() => {
