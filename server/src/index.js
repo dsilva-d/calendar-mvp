@@ -137,9 +137,8 @@ app.post("/api/analyze-calendar", async (req, res) => {
         return res.status(400).json({ error: "events must be an array" });
       }
   
-      const trimmedEvents = events.slice(0, 50).map((event) => ({
-        id: event.id,
-        title: event.title,
+      const normalizedEvents = events.map((event) => ({
+        title: event.title || "Untitled",
         start: event.start,
         end: event.end,
         attendeeCount: event.attendeeCount ?? 0,
@@ -147,25 +146,47 @@ app.post("/api/analyze-calendar", async (req, res) => {
         status: event.status ?? "confirmed",
       }));
   
-      console.log("[analyze] event count:", trimmedEvents.length);
+      const compactEvents = normalizedEvents.map((event, index) =>
+        [
+          `#${index + 1}`,
+          event.title,
+          event.start,
+          event.end,
+          `attendees:${event.attendeeCount}`,
+          `recurring:${event.isRecurring}`,
+          `status:${event.status}`,
+        ].join(" | ")
+      );
+  
+      console.log("[analyze] event count:", compactEvents.length);
+      console.log("[analyze] before Gemini call");
   
       const prompt = `
-  You analyze a user's upcoming calendar week.
+  You are analyzing a user's full upcoming calendar week.
   
-  Return practical schedule analysis.
+  Return valid JSON with exactly this shape:
+  {
+    "insights": ["string", "string", "string"],
+    "suggestions": [
+      {
+        "type": "move_meeting|create_focus_block|reduce_recurring_meetings|protect_morning_focus",
+        "title": "string",
+        "reason": "string"
+      }
+    ]
+  }
   
   Rules:
-  - Recurring generic syncs/check-ins are often low or medium priority.
-  - Interviews, 1:1s, roadmap/planning, strategy, and reviews are often medium or high priority.
+  - Use all events provided.
   - Keep exactly 3 insights.
   - Keep up to 3 suggestions.
-  - Every input event must appear exactly once in eventClassifications.
+  - Focus on schedule patterns, overload, recurring meetings, fragmentation, and focus time.
+  - Do not include any extra keys.
+  - Keep suggestions practical and concise.
   
-  Analyze these normalized calendar events:
-  ${JSON.stringify(trimmedEvents)}
+  Weekly events:
+  ${compactEvents.join("\n")}
       `.trim();
-  
-      console.log("[analyze] before Gemini call");
   
       const response = await Promise.race([
         ai.models.generateContent({
@@ -173,69 +194,10 @@ app.post("/api/analyze-calendar", async (req, res) => {
           contents: prompt,
           config: {
             responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                eventClassifications: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      id: { type: Type.STRING },
-                      type: {
-                        type: Type.STRING,
-                        enum: [
-                          "one_on_one",
-                          "interview",
-                          "planning",
-                          "review",
-                          "standup",
-                          "sync",
-                          "focus_block",
-                          "personal",
-                          "other",
-                        ],
-                      },
-                      priority: {
-                        type: Type.STRING,
-                        enum: ["high", "medium", "low"],
-                      },
-                      reason: { type: Type.STRING },
-                    },
-                    required: ["id", "type", "priority", "reason"],
-                  },
-                },
-                insights: {
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING },
-                },
-                suggestions: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      type: {
-                        type: Type.STRING,
-                        enum: [
-                          "move_meeting",
-                          "create_focus_block",
-                          "reduce_recurring_meetings",
-                          "protect_morning_focus",
-                        ],
-                      },
-                      title: { type: Type.STRING },
-                      reason: { type: Type.STRING },
-                    },
-                    required: ["type", "title", "reason"],
-                  },
-                },
-              },
-              required: ["eventClassifications", "insights", "suggestions"],
-            },
           },
         }),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Gemini request timed out")), 20000)
+          setTimeout(() => reject(new Error("Gemini request timed out")), 30000)
         ),
       ]);
   
@@ -248,15 +210,28 @@ app.post("/api/analyze-calendar", async (req, res) => {
   
       const parsed = JSON.parse(text);
   
+      if (
+        !parsed ||
+        !Array.isArray(parsed.insights) ||
+        !Array.isArray(parsed.suggestions)
+      ) {
+        throw new Error("Gemini returned invalid JSON shape");
+      }
+  
       console.log("[analyze] success in", Date.now() - startedAt, "ms");
-      return res.json(parsed);
+      return res.json({
+        insights: parsed.insights.slice(0, 3),
+        suggestions: parsed.suggestions.slice(0, 3),
+      });
     } catch (error) {
       console.error("[analyze] Gemini analysis error:", error);
       return res.status(500).json({
-        error: error instanceof Error ? error.message : "Failed to analyze calendar",
+        error:
+          error instanceof Error ? error.message : "Failed to analyze calendar",
       });
     }
   });
+  
 
 app.post("/auth/logout", (req, res) => {
     req.session.destroy(() => {
