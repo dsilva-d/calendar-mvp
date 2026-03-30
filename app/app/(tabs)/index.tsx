@@ -358,6 +358,7 @@ export default function HomeScreen() {
         credentials: "include",
         body: JSON.stringify({
           events: normalized,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
       });
 
