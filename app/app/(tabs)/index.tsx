@@ -463,54 +463,56 @@ export default function HomeScreen() {
         {classified.length === 0 ? (
           <Text>No upcoming events found. Try connecting your calendar.</Text>
         ) : (
-          <View style={styles.weekViewContainer}>
-            {weekDays.map((day) => {
-              const key = toDateKey(day);
-              const dayEvents = eventsByDate[key] || [];
-              const todayKey = toDateKey(new Date());
-              const isToday = key === todayKey;
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.weekViewRow}>
+              {weekDays.map((day) => {
+                const key = toDateKey(day);
+                const dayEvents = eventsByDate[key] || [];
+                const todayKey = toDateKey(new Date());
+                const isToday = key === todayKey;
 
-              return (
-                <View
-                  key={key}
-                  style={[styles.weekDayCard, isToday && styles.todayCard]}
-                >
-                  <Text style={styles.weekDayLabel}>{formatDayLabel(day)}</Text>
-                  <Text style={styles.weekDayDate}>{formatDayNumber(day)}</Text>
+                return (
+                  <View
+                    key={key}
+                    style={[styles.weekDayColumn, isToday && styles.todayCard]}
+                  >
+                    <Text style={styles.weekDayLabel}>{formatDayLabel(day)}</Text>
+                    <Text style={styles.weekDayDate}>{formatDayNumber(day)}</Text>
 
-                  {dayEvents.length === 0 ? (
-                    <Text style={styles.emptyDayText}>No events</Text>
-                  ) : (
-                    dayEvents.map((event) => {
-                      const aiMatch = aiAnalysis?.eventClassifications.find(
-                        (item) => item.id === event.id
-                      );
+                    {dayEvents.length === 0 ? (
+                      <Text style={styles.emptyDayText}>No events</Text>
+                    ) : (
+                      dayEvents.map((event) => {
+                        const aiMatch = aiAnalysis?.eventClassifications.find(
+                          (item) => item.id === event.id
+                        );
 
-                      return (
-                        <View key={event.id} style={styles.calendarEventCard}>
-                          <Text style={styles.calendarEventTime}>
-                            {formatEventTime(event.start)}
-                          </Text>
-                          <Text style={styles.calendarEventTitle}>
-                            {event.title}
-                          </Text>
-                          <Text style={styles.calendarEventMeta}>
-                            Rule: {event.classification.type} ·{" "}
-                            {event.classification.priority}
-                          </Text>
-                          {aiMatch ? (
-                            <Text style={styles.calendarEventMeta}>
-                              AI: {aiMatch.type} · {aiMatch.priority}
+                        return (
+                          <View key={event.id} style={styles.calendarEventCard}>
+                            <Text style={styles.calendarEventTime}>
+                              {formatEventTime(event.start)}
                             </Text>
-                          ) : null}
-                        </View>
-                      );
-                    })
-                  )}
-                </View>
-              );
-            })}
-          </View>
+                            <Text style={styles.calendarEventTitle}>
+                              {event.title}
+                            </Text>
+                            <Text style={styles.calendarEventMeta}>
+                              Rule: {event.classification.type} ·{" "}
+                              {event.classification.priority}
+                            </Text>
+                            {aiMatch ? (
+                              <Text style={styles.calendarEventMeta}>
+                                AI: {aiMatch.type} · {aiMatch.priority}
+                              </Text>
+                            ) : null}
+                          </View>
+                        );
+                      })
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          </ScrollView>
         )}
       </View>
     </ScrollView>
@@ -590,10 +592,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 4,
   },
-  weekViewContainer: {
+  weekViewRow: {
+    flexDirection: "row",
     gap: 12,
+    alignItems: "flex-start",
   },
-  weekDayCard: {
+  weekDayColumn: {
+    width: 240,
     borderWidth: 1,
     borderColor: "#e5e7eb",
     borderRadius: 12,
