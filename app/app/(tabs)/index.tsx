@@ -528,9 +528,6 @@ export default function HomeScreen() {
                       <Text style={styles.emptyDayText}>No events</Text>
                     ) : (
                       dayEvents.map((event) => {
-                        const aiMatch = aiAnalysis?.eventClassifications.find(
-                          (item) => item.id === event.id
-                        );
 
                         return (
                           <View key={event.id} style={styles.calendarEventCard}>
@@ -544,11 +541,6 @@ export default function HomeScreen() {
                               Rule: {event.classification.type} ·{" "}
                               {event.classification.priority}
                             </Text>
-                            {aiMatch ? (
-                              <Text style={styles.calendarEventMeta}>
-                                AI: {aiMatch.type} · {aiMatch.priority}
-                              </Text>
-                            ) : null}
                           </View>
                         );
                       })
