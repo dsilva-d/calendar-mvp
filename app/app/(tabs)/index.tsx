@@ -195,6 +195,24 @@ function buildUpcomingWeek(daysSource: Date) {
   return days;
 }
 
+function formatSuggestionType(type: string) {
+  switch (type) {
+    case "move_meeting":
+      return "Move meeting";
+    case "create_focus_block":
+      return "Create focus block";
+    case "reduce_recurring_meetings":
+      return "Reduce recurring meetings";
+    case "protect_morning_focus":
+      return "Protect morning focus";
+    default:
+      return type
+        .split("_")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+  }
+}
+
 export default function HomeScreen() {
   const [calendarData, setCalendarData] = useState<any>(mockCalendar);
   const [source, setSource] = useState("mock");
@@ -448,7 +466,9 @@ export default function HomeScreen() {
               aiAnalysis.suggestions.map((suggestion, index) => (
                 <View key={index} style={styles.eventRow}>
                   <Text style={styles.eventTitle}>{suggestion.title}</Text>
-                  <Text>{suggestion.type}</Text>
+                  <Text style={styles.suggestionType}>
+                    {formatSuggestionType(suggestion.type)}
+                  </Text>
                   <Text>{suggestion.reason}</Text>
                 </View>
               ))
@@ -646,5 +666,24 @@ const styles = StyleSheet.create({
   calendarEventMeta: {
     fontSize: 12,
     color: "#4b5563",
+  },
+  suggestionBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#eef2ff",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+    marginBottom: 6,
+  },
+  suggestionBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#4338ca",
+  },
+  suggestionType: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#6b7280",
+    marginBottom: 4,
   },
 });
